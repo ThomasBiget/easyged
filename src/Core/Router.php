@@ -6,22 +6,22 @@ class Router
 {
     private array $routes = [];
 
-    public function get(string $path, string $action): void
+    public function get(string $path, callable $action): void
     {
         $this->routes['GET'][$path] = $action;
     }
 
-    public function post(string $path, string $action): void
+    public function post(string $path, callable $action): void
     {
         $this->routes['POST'][$path] = $action;
     }
 
-    public function put(string $path, string $action): void
+    public function put(string $path, callable $action): void
     {
         $this->routes['PUT'][$path] = $action;
     }
 
-    public function delete(string $path, string $action): void
+    public function delete(string $path, callable $action): void
     {
         $this->routes['DELETE'][$path] = $action;
     }
@@ -38,24 +38,8 @@ class Router
             return;
         }
 
-        [$controllerName, $methodName] = explode('@', $this->routes[$method][$uri]);
+        $action = $this->routes[$method][$uri];
 
-        $controllerClass = "App\\Controllers\\{$controllerName}";
-
-        if (!class_exists($controllerClass)) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Controller not found']);
-            return;
-        }
-
-        $controller = new $controllerClass();
-
-        if (!method_exists($controller, $methodName)) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Method not found in controller']);
-            return;
-        }
-
-        call_user_func([$controller, $methodName]);
+        call_user_func($action);
     }
 }

@@ -3,18 +3,14 @@
 namespace App\Controllers;
 
 use App\Services\InvoiceService;
-use App\Repository\InvoiceRepository;
-use App\Database\Database;
 
 class InvoiceController
 {
     private InvoiceService $invoiceService;
 
-    public function __construct()
+    public function __construct(InvoiceService $invoiceService)
     {
-        $db = Database::getInstance()->getConnection();
-        $repository = new InvoiceRepository($db);
-        $this->invoiceService = new InvoiceService($repository);
+        $this->invoiceService = $invoiceService;
     }
 
     public function index(): void
@@ -23,26 +19,6 @@ class InvoiceController
         echo json_encode($invoices);
     }
 
-    public function show(): void
-    {
-        $id = $_GET['id'] ?? null;
-
-        if (!$id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Missing invoice id']);
-            return;
-        }
-
-        $invoice = $this->invoiceService->getById((int)$id);
-
-        if (!$invoice) {
-            http_response_code(404);
-            echo json_encode(['error' => 'Invoice not found']);
-            return;
-        }
-
-        echo json_encode($invoice);
-    }
 
     public function store(): void
     {
@@ -54,9 +30,32 @@ class InvoiceController
             return;
         }
 
-        $invoice = $this->invoiceService->create($data);
-        http_response_code(201);
-        echo json_encode($invoice);
+        try {
+            $result = $this->invoiceService->createInvoiceWithLines($data);
+            echo json_encode($result);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function show(): void
+    {
+        $id = $_GET['id'] ?? null;
+        $withLines = $_GET['with_lines'] ?? false;
+
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing id']);
+            return;
+        }
+
+        $result = $withLines
+            ? $this->invoiceService->getInvoiceWithLines((int)$id)
+            : $this->invoiceService->getById((int)$id);
+
+        echo json_encode($result);
     }
 
     public function update(): void
@@ -81,7 +80,6 @@ class InvoiceController
         echo json_encode($invoice);
     }
 
-    // ✅ DELETE /invoices?id=1
     public function delete(): void
     {
         $id = $_GET['id'] ?? null;
