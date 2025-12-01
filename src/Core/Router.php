@@ -2,28 +2,48 @@
 
 namespace App\Core;
 
+use App\Middleware\JwtMiddleware;
+
 class Router
 {
     private array $routes = [];
+    private JwtMiddleware $jwtMiddleware;
 
-    public function get(string $path, callable $action): void
+    public function __construct(JwtMiddleware $jwtMiddleware)
     {
-        $this->routes['GET'][$path] = $action;
+        $this->jwtMiddleware = $jwtMiddleware;
     }
 
-    public function post(string $path, callable $action): void
+    public function get(string $path, callable $action, bool $protected = false): void
     {
-        $this->routes['POST'][$path] = $action;
+        $this->routes['GET'][$path] = [
+            'action' => $action,
+            'protected' => $protected
+        ];
     }
 
-    public function put(string $path, callable $action): void
+    public function post(string $path, callable $action, bool $protected = false): void
     {
-        $this->routes['PUT'][$path] = $action;
+        $this->routes['POST'][$path] = [
+            'action' => $action,
+            'protected' => $protected
+        ];
     }
 
-    public function delete(string $path, callable $action): void
+    public function put(string $path, callable $action, bool $protected = false): void
     {
-        $this->routes['DELETE'][$path] = $action;
+        $this->routes['PUT'][$path] = [
+            'action' => $action,
+            'protected' => $protected
+        ];
+    }
+
+    public function delete(string $path, callable $action, bool $protected = false): void
+    {
+        $this->routes['DELETE'][$path] = [
+            'action' => $action,
+            'protected' => $protected
+        ];
     }
 
     public function dispatch(string $method, string $uri): void
@@ -38,8 +58,12 @@ class Router
             return;
         }
 
-        $action = $this->routes[$method][$uri];
+        $route = $this->routes[$method][$uri];
 
-        call_user_func($action);
+        if ($route['protected']) {
+            $this->jwtMiddleware->handle();
+        }
+
+        call_user_func($route['action']);
     }
 }

@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Service;
+namespace App\Services;
 
 use App\Repository\InvoiceRepositoryInterface;
 use App\Repository\LineItemRepositoryInterface;
 use App\Models\LineItem;
+use App\Services\SolrService;
 use Exception;
 use PDO;
 
@@ -13,15 +14,18 @@ class InvoiceService
     private PDO $db;
     private InvoiceRepositoryInterface $invoiceRepository;
     private LineItemRepositoryInterface $lineItemRepository;
+    private SolrService $solrService;
 
     public function __construct(
         PDO $db,
         InvoiceRepositoryInterface $invoiceRepository,
-        LineItemRepositoryInterface $lineItemRepository
+        LineItemRepositoryInterface $lineItemRepository,
+        SolrService $solrService
     ) {
         $this->db = $db;
         $this->invoiceRepository = $invoiceRepository;
         $this->lineItemRepository = $lineItemRepository;
+        $this->solrService = $solrService;
     }
 
     public function getAll(): array
@@ -102,6 +106,21 @@ class InvoiceService
 
                 $this->lineItemRepository->create($lineItem);
             }
+            
+            $text = implode(' ', array_map(
+                fn($item) => $item['description'],
+                $data['line_items']
+            ));
+            
+            $this->solrService->indexInvoice([
+                'id' => $invoiceId,
+                'invoice_number' => $data['invoice_number'],
+                'supplier_name' => $data['supplier_name'],
+                'status' => 'pending',
+                'invoice_date' => $data['invoice_date'],
+                'total_amount' => $data['total_amount']
+            ], $text);
+            
 
             $this->db->commit();
 
